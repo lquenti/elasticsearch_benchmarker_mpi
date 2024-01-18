@@ -1,0 +1,42 @@
+[
+  {
+    "query_result": [
+      {
+        "body": {
+          /* The inside of the first "query" in the input */
+        },
+        "responses": [ 
+          [ 
+            /* load generator 1 */
+            {"latency": 0.35, "docs": 2500},
+            {"latency": 0.32, "docs": 2500},
+            {"error_code": 501}
+            {"latency": 0.33, "docs": 2500},
+          ],
+          [ 
+            /* load generator 2 */
+            {"latency": 0.35, "docs": 2500},
+            {"latency": 0.32, "docs": 2500},
+            {"error_code": 501}
+            {"latency": 0.33, "docs": 2500},
+          ]
+        ]
+      },
+      {
+        "body": {
+          /* The inside of the second "query" in the input */
+        },
+        "responses": [ 
+          /* same as above */
+        ]
+      }
+    ]
+    /* same as input */
+    "warmup_time_secs": 30,
+    "execution_time_secs": 120,
+    "sleep_between_requests_secs": 0.25
+  },
+  {
+    /* ... */
+  }
+]

@@ -1,0 +1,33 @@
+image: python:3.10-buster
+
+# Change pip's cache directory to be inside the project directory since we can
+# only cache local items.
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+# Pip's cache doesn't store the python packages
+# https://pip.pypa.io/en/stable/reference/pip_install/#caching
+#
+# If you want to also cache the installed packages, you have to install
+# them in a virtualenv and cache it as well.
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+stages:
+  - static-analysis
+
+before_script:
+  - apt update && apt upgrade -y && apt install -y mpich
+  - python -m venv venv && source venv/bin/activate && python --version
+  - pip install --upgrade pip && pip install -r ./benchmarker/requirements.txt
+  - pip install pdoc3 pytest flake8 flake8-bugbear pep8-naming flake8-builtins flake8-comprehensions
+
+flake8:
+  stage: static-analysis
+  script:
+    flake8 --version && flake8 --count --statistics --max-line-length=120 benchmarker/*.py
+  only:
+    - main
+    - merge_requests

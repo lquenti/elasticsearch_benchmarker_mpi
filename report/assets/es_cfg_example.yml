@@ -1,0 +1,12 @@
+cluster.name: securemetadata
+node.name: securemetadata4
+node.roles: ["master", "data"]
+network.host: 0.0.0.0
+cluster.initial_master_nodes: [securemetadata0]
+# Expects hostnames to be DNS resolvable
+discovery.seed_hosts: [
+  "hostname_of_rank_0", 
+  "hostname_of_rank_1", 
+  "hostname_of_rank_2"
+]
+xpack.security.enabled: false

@@ -1,0 +1,28 @@
+usage: queryer.py [-h] --hosts HOSTS [--indexname INDEXNAME] --output OUTPUT
+                  [--warmup WARMUP] [--execution EXECUTION] [--sleep SLEEP]
+                  [--testmode] [--allowbad]
+                  json_file
+
+Elasticsearch Query Benchmarker.
+
+positional arguments:
+  json_file             Path to the JSON file containing the query
+                        configurations.
+
+options:
+  -h, --help            show this help message and exit
+  --hosts HOSTS         Comma separated hosts. Example: "--hosts
+                        host1:9200,10.0.0.2:9200,localhost:9200"
+  --indexname INDEXNAME
+                        Name of the Elasticsearch index to query.
+  --output OUTPUT       Filepath for the output results.
+  --warmup WARMUP       Default warmup time in seconds (defaults to 60).
+  --execution EXECUTION
+                        Default execution time in seconds (defaults to 300).
+  --sleep SLEEP         How long to wait until the next request (defaults to
+                        0.0).
+  --testmode            Run the script in test mode. Executes only on root,
+                        once per query.
+  --allowbad            Allow yellow and red clusters (useful for specific
+                        debugging)
+

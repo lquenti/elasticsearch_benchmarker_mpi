@@ -1,0 +1,8 @@
+/venv
+#/assets
+/build
+docker*
+singularity*
+es_data/
+assets/es/
+venv/

@@ -1,0 +1,28 @@
+{
+"properties": {
+  "surcharge": {
+    "scaling_factor": 100,
+    "type": "scaled_float"
+  },
+  "dropoff_datetime": {
+    "type": "date",
+    "format": "yyyy-MM-dd HH:mm:ss"
+  },
+  "trip_type": {
+    "type": "keyword"
+  },
+  "mta_tax": {
+    "scaling_factor": 100,
+    "type": "scaled_float"
+  },
+  [...]
+  "trip_distance": {
+    "scaling_factor": 100,
+    "type": "scaled_float"
+  },
+  "pickup_location": {
+    "type": "geo_point"
+  }
+}
+}
+
