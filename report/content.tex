@@ -15,7 +15,7 @@ In order to achive these goals, the following contributions were made:
 \begin{itemize}
 \item Design and implementation of a zero-configuration workflow to spawn a rootless, containerized Elasticsearch cluster of arbitrary size within an SLURM-allocated \ac{MPI} environment.
 \item Design and implementation of a highly scalable, distributed benchmarker for ingestion performance
-\item Design and implementation of a highly scalable, distributed benchmarker for query performance with custom benchmark scenarios using an JSON-based \ac{DSL}.
+\item Design and implementation of a highly scalable, distributed benchmarker for query performance with custom benchmark scenarios using an \ac{JSON} based \ac{DSL}.
 \item Benchmark an dynamically spawned Elasticsearch cluster on \ac{HPC} using a canonical dataset common in existing literature.
 \end{itemize}
 \subsection{Structure}
@@ -23,9 +23,9 @@ This report is structured as follows: In section 2, Elasticsearch, the full text
 
 \section{Background}
 \subsection{Elasticsearch}
-Elasticsearch is a distributed search engine initially developed in 2010. Since it stores its data in a document model, it can also be seen as a NoSQL database. The full text search is internally relies on the Apache Lucene library. It is mainly used for its full text fuzzy search capabilities and its JSON-based REST interface. It is used by many large websites such as Wikipedia\footnote{Wikipedia also used Lucene beforehand.}, Netflix, Stackoverflow, and LinkedIn.
+Elasticsearch is a distributed search engine initially developed in 2010. Since it stores its data in a document model, it can also be seen as a NoSQL database. The full text search is internally relies on the Apache Lucene library. It is mainly used for its full text fuzzy search capabilities and its \ac{JSON}-based REST interface. It is used by many large websites such as Wikipedia\footnote{Wikipedia also used Lucene beforehand.}, Netflix, Stackoverflow, and LinkedIn.
 
-In Elasticsearch, a collection of \emph{documents} are stored in an \emph{index}. Documents are equivalent to, and can be sent in the form of, JSON objects. They can be nested. Each index has a \emph{schema}, which is a type mapping for each of the key-value pairs contained in the index\footnote{Akin to a SQL database definition.}. This mapping can either be static or dynamically guessed based. The index data can be \emph{queried} using Elasticsearchs own \ac{DSL}, again relying on JSON and REST as the foundational technology.
+In Elasticsearch, a collection of \emph{documents} are stored in an \emph{index}. Documents are equivalent to, and can be sent in the form of, \ac{JSON} objects. They can be nested. Each index has a \emph{schema}, which is a type mapping for each of the key-value pairs contained in the index\footnote{Akin to a SQL database definition.}. This mapping can either be static or dynamically guessed based. The index data can be \emph{queried} using Elasticsearchs own \ac{DSL}, again relying on \ac{JSON} and REST as the foundational technology.
 
 In 2021, due to a license change from Apache 2.0 to a more permissive license, OpenSearch was created as an Elasticsearch fork, which is maintained by several companies such as AWS.
 
@@ -64,54 +64,61 @@ On a high level, the spawner works as follows:
   \item Lastly, each rank starts the immutable singularity container with the new config and previously created elasticsearch mounted in.
 \end{itemize}
 
-\subsection{Distributed Ingestion Benchmarker}
-% TODO mention in the appendix the ingest benchmarker static index specification
-% TODO mention in the appendix the ingest benchmarker cached offsets
-% TODO mention in the appendix the ingest benchmarker CLI interface
-% - What
-%   - Distributed MPI Ingestion benchmarker
-%   - Optimized I/O usage by caching the offsets each worker has to start
-%   - Supports sttatic index definitions, configurable bulk size, configurable number of shards
-%   - Providing compatibility with rally tracks by supporting NDJSON as an input
-% - The goal
-%   - Write throughput
-%   - (we have to fill the indices for read benchmarks anyways)
-% - How it works
-%   - setup
-%     - Root only
-%       - Create the Offset cache
-%         - Why we do offset caching
-%           - We have to divide the bulk ingest load between all nodes
-%           - We do that by giving each rank (approximately) the same number of documents
-%           - For `N` nodes an `L` lines, rank i gets `[i/N*L, (i+1)/N*L]`
-%           - But this also means that we have to know the number of lines, thus we have to read it once
-%           - And then we have to read it again to find our starting byte to seek to!
-%           - This done for all nodes creates a lot of IO, with `nyc_taxis` corpus around 75GB in size and over 160 million documents
-%           - Thus, the root precomputes the offsets and saves it for future executions
-%         - How we do offset caching:
-%           - Since we have an ndjson <https://ndjson.org/> formatted document, we can just cut the number of lines
-%           - First iteration: count the number of lines (i.e. documents)
-%           - Compute the starting and ending line for each rank by the total number of lines
-%           - Second iteration: Find the byte offsets for each rank start, write everything into an `.offset` file
-%           - Validate that, starting at the current byte, the line for each rank has a proper JSON doc
-%       - Create the (empty) Elasticsearch index
-%         - Following settings
-%           - strict mapping for reproducibility (explain what it is)
-%           - number of shards default to 1 shard per ES cluster node (but configurable)
-%           - `requests.cache.enable: false` (cite doc)
-%     - send the offsets to everyone
-%   - benchmark
-%     - For each rank
-%       - Seek to the spot based on the rank
-%         - calculated as `rank % len(all_hosts)` for even distribution
-%       - blast through the requests blockingly, as fast as possible, track each req time
-%         - We send them in bulk (using the Bulk API (link it)), default bulk size of 1000 docs
-%           - We try to measure as strictly as possible, i.e. only the delta directly b4 and directly after the send, no query building overhead
-%       - MPI barrier
-%     - Gather all data at root
-%   - teardown
-%     - root dumps results in a json
+\newpage
 
+\subsection{Distributed Ingestion Benchmarker}
+This section introduces the distributed, \ac{MPI}-based ingestion benchmarker. It is used both for providing a fast way to ingest an \ac{JSON}-formatted corpus into an elasticsearch cluster as well as measuring the performance of write operations in throughput as well as latency. The benchmarker itself is very I/O optimized, using so-called offset caching for reducing redundant filesystem load between workers. It supports statically typed index definitions, configurable bulk size as well as a configurable number of shards. It supports the same corpora as elastics own rally benchmarker by using \ac{NDJSON} as an input format\footnote{Another big advantage of \ac{NDJSON} is that downscaling the benchmark is trivial using\\\texttt{head -n <NEW\_NUMBER> original.json > downscaled.json}}. The \ac{CLI} interface with all its features can be found in the appendix.\\
+
+The benchmark can be split into three phases:
+
+\paragraph{Setup:}
+Note that those steps are done by only the root / rank 0.
+\begin{itemize}
+  \item Create the offset cache.
+
+    The offset cache is needed for the following reason: In order to do the ingestion in a distributed manner, the bulk ingest load has to be split evenly between all nodes. This is done by giving each rank (approximately) the same number of documents in the corpus file. Note that \ac{NDJSON} implies one document per line. For $N$ nodes and $L$ lines, each $i$ gets the range
+    \[
+      \left[ \frac{i}{N} \cdot L, \frac{i+1}{N} \cdot L \right)
+    \]
+    But this requires that the number of lines have to be known, which implies reading the whole file at least once. After the range has been computed, the file has to be read a second time in order to find the starting byte to seek to. This is needed since the \ac{JSON} documents have a variadic size in bytes; one can't just compute the $i$-th document through $doc\_size \cdot i$.
+
+    The corpora are often huge; the \texttt{nyc\_taxis} corpus used in this report is around 75GB in size with over 160,000,000 documents. This would create a lot of I/O load if every node would do this every time the benchmark runs! 
+
+    So instead, the root computes all offsets once and saves it into a \texttt{.offsets.json} file, which can be reused in future benchmarks, removing all redundant work. This optimization is possible whenever the number of load generators stay the same.
+
+    On a technical level, this is done as follows:
+    \begin{enumerate}
+      \item Iteration 1: Count the number of lines.
+      \item Compute the starting and ending line for each rank using the total number of lines.
+      \item Iteration 2: Find the byte offsets for each rank.
+      \item Save everything into a \texttt{.offsets.json} file.
+      \item Validate that, starting at the current byte, the line of each rank has a complete \ac{JSON} document.
+    \end{enumerate}
+    An example \texttt{.offsets.json} file can be found in the appendix.
+
+  \item Create an (empty) Elasticsearch index. It is created using the following settings:
+    \begin{itemize}
+      \item Strict type mappings for reproducability. Elasticsearch allows for dynamic schemas, which means that the datatype is interpreted when the first data arrives. When using a distributed benchmarker, it is not clear which rank sends the first bulk ingest request. Thus, indeterministic or unexpected behaviour could occur. So instead, using elasticsearchs own type sytem\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-types.html}} and \ac{DSL}\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html}} the type mapping can be defined statically and used by the benchmarker.
+      \item The number of shards explicitly set, defaulting to one shard per elasticsearch node. This means that every node gets data while still keeping the sharding complexity as trivial as possible. This is configurable via the \ac{CLI} interface.
+      \item Explicity disable caching through \texttt{requests.cache.enable}\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/shard-request-cache.html}}
+    \end{itemize}
+\end{itemize}
+At the end of the setup phase, the offsets are sent to all workers using \texttt{MPI\_BROADCAST}.
+
+\paragraph{Benchmark:} This work is done by each rank including the root.
+\begin{itemize}
+  \item First, seek to the starting byte based on the rank.
+  \item Create and send the requests blockingly, as fast as possible. Track each response time.
+
+    The requests are sent in bulk using elasticsearches Bulk API\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html}} with a default bulk size of 1000 documents, configurable via CLI parameter.
+
+    The measurements are done with utmost care to be as precise as possible and minimize the overhead created by the benchmarker itself. Thus, the delta recorded only measures the time directly before and after the HTTP request, removing the query building overhead.
+  \item Once all data was sent, the workers wait at an \ac{MPI} barrier for the other workers to finish.
+  \item At the end, all data is gathered at the root process.
+\end{itemize}
+
+\paragraph{Teardown:}
+Once the data is gathered, the root dumps it into a \ac{JSON} file.
 
 \subsection{Distributed Query Benchmarker}
 % TODO mention in the appendix the query benchmarker input format
