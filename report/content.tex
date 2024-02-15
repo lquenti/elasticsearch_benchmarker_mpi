@@ -172,17 +172,22 @@ Once all ranks are ready, the actual benchmark starts. For each of the fully dis
 Once all measurements are created, the results of all ranks get merged at the root using \ac{MPI} gather as well as some data transformation. The resulting output format can be seen in the appendix. To finish the execution, the root dumps the JSON-formatted results at a path specified via a \ac{CLI} paramter.
 
 \subsubsection{Test Mode}
-% - also test mode for debugging query configurations
-% - --test-mode
-% - only runs on root rank
-% - only requests each query once and pretty prints both the query and ersult
-% - used to see the output is actually what is expected and one doesnt accidentally benchmark invalid or broken queries
-%   - also we check for non-200, it could be that the query just does something different than what u expect
+Designing a database benchmark is complicated; it should be very clear both what the expected result is and whether the query actually produces that result. In order to verify the correctness of a given benchmark, a test mode was developed. This test mode can be run with \texttt{-{}-test-mode}.
+
+The purpose of the test mode is to give a short overview to check whether the raw Elasticsearch responses contain the results expected. Therefore it is sufficient that the test mode only runs on the root rank. The test mode itself is pretty trivial: It goes through each benchmark step, runs each query once, verifying that the response code is successful, and then prints the request input as well as the response output as prettified JSON into the terminal for further manual inspection.
+
+While designing several benchmarks, it helped finding broken queries generating empty responses.
 
 \subsection{Benchmark Design}
 \subsubsection{High Level Benchmark Workflow}
+To create and run a benchmark, the following steps have to be done:
+\begin{enumerate}
+  \item Choose a dataset or create a synthetic one. The dataset has to be formatted in the \texttt{ndjson} format, which is defined as one JSON object per line. Datasets for many common Elasticsearch use cases can be found in Elastics rally-tracks repository \cite{rallytracks}.
+  \item 
+\end{enumerate}
 % - Create or choose a dataset in `ndjson` format
 %   - See rally-tracks for example data to use for common use cases
+% - Define the properties see ingest
 % - Design the query document
 % - Spawn up the automatically configured elasticsearch cluster using MPI and SLURM
 % - Run the ingest benchmarker using MPI to get the data into the cluster
