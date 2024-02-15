@@ -183,15 +183,13 @@ While designing several benchmarks, it helped finding broken queries generating 
 To create and run a benchmark, the following steps have to be done:
 \begin{enumerate}
   \item Choose a dataset or create a synthetic one. The dataset has to be formatted in the \texttt{ndjson} format, which is defined as one JSON object per line. Datasets for many common Elasticsearch use cases can be found in Elastics rally-tracks repository \cite{rallytracks}.
-  \item 
+  \item Define the data type mappings for each corpus attribute using the Elasticsearch index mapping syntax\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/properties.html}}. An example can be found in the repository.
+  \item Design the query document. This basically consists of embedding the elasticsearch search API queries into a bigger JSON structure defining the benchmark steps.  Note that the queries itself do not have to be altered, thus they can also easily be constructed using cURL. Since Elastics rally uses also uses the search API syntax, their benchmarks can easily be ported. For each benchmark step the warmup time, execution time, and sleep time between each request can be defined optionally. The query document format can be found in the appendix, a ported benchmark from rally can be found in the repository.
+  \item Spawn up the automatically configured elasticsearch cluster using the \ac{MPI}-based cluster creator in a given SLURM-environment using \texttt{mpirun}.
+  \item Run the distributed ingest benchmarker with the previously created corpus and type mapping using \texttt{mpirun}.
+  \item Run the distributed query benchmarker with the previously created query document using \texttt{mpirun}.
+  \item Analyze all results. A Jupyter notebook in the repository can be used as a starting point.
 \end{enumerate}
-% - Create or choose a dataset in `ndjson` format
-%   - See rally-tracks for example data to use for common use cases
-% - Define the properties see ingest
-% - Design the query document
-% - Spawn up the automatically configured elasticsearch cluster using MPI and SLURM
-% - Run the ingest benchmarker using MPI to get the data into the cluster
-% - Run the query benchmarker using MPI to get the query performance.
 
 \subsubsection{Corpus and Query Design}
 % TODO mention in the appendix the example document
