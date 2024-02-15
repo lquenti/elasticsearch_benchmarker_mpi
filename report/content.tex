@@ -215,7 +215,7 @@ It contains the following benchmark steps:
 \end{itemize}
 
 \section{Test Run and Analysis}
-% TODO the goal is to confirm that it works in general
+% Note that the goal here is to confirm that it works properly, not to actually analyze the performance!
 % - Setup
 %   - Running on Emmy
 %     - mention HW here, atm 3 gcn2 nodes
@@ -225,10 +225,13 @@ It contains the following benchmark steps:
 %   - Configured to not be cached
 %   - Python 3.9.16
 %   - OpenMPI 4.1.4 compiled with ICC
-% TODO the actual results
+%
+% The results should mainly just show that the latency and throughput scales with the number of load generators per node.
+% maybe also show how the range query scales with output size for a given number of load generators
+% thats enough, the raw data can be found in the repo
 
-\section{Discussion}
-% TODO discuss results
+\section{Challenges}
+The benchmarker still has two problems, both of which are not trivial to solve optimally.
 % - Problem: result size
 %   - Note that default size are the first 10 elements if not specified otherwise
 %   - specified by `index.max_result_window`, usual 10000
