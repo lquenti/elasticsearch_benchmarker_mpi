@@ -67,7 +67,7 @@ On a high level, the spawner works as follows:
 \newpage
 
 \subsection{Distributed Ingestion Benchmarker}
-This section introduces the distributed, \ac{MPI}-based ingestion benchmarker. It is used both for providing a fast way to ingest an \ac{JSON}-formatted corpus into an elasticsearch cluster as well as measuring the performance of write operations in throughput as well as latency. The benchmarker itself is very I/O optimized, using so-called offset caching for reducing redundant filesystem load between workers. It supports statically typed index definitions, configurable bulk size as well as a configurable number of shards. It supports the same corpora as elastics own rally benchmarker by using \ac{NDJSON} as an input format\footnote{Another big advantage of \ac{NDJSON} is that downscaling the benchmark is trivial using\\\texttt{head -n <NEW\_NUMBER> original.json > downscaled.json}}. The \ac{CLI} interface with all its features can be found in the appendix.\\
+This section introduces the distributed, \ac{MPI}-based ingestion benchmarker. It is used both for providing a fast way to ingest an \ac{JSON}-formatted corpus into an elasticsearch cluster as well as measuring the performance of write operations in throughput as well as latency. The benchmarker itself is very I/O optimized, using so-called offset caching for reducing redundant filesystem load between workers. It supports statically typed index definitions, configurable bulk size as well as a configurable number of shards. It supports all corpora designed for elastics own rally benchmarker by using \ac{NDJSON} as an input format\footnote{Another big advantage of \ac{NDJSON} is that downscaling the benchmark is trivial using\\\texttt{head -n <NEW\_NUMBER> original.json > downscaled.json}}. The \ac{CLI} interface with all its features can be found in the appendix.\\
 
 The benchmark can be split into three phases:
 
@@ -107,6 +107,10 @@ At the end of the setup phase, the offsets are sent to all workers using \texttt
 
 \paragraph{Benchmark:} This work is done by each rank including the root.
 \begin{itemize}
+  \item Each rank computes to which elasticsearch node it should send the data. 
+
+    It is assumed that the user understands that this distribution is a problem that has to be solved. Thus, it is assumed that the \ac{MPI} world size is a multiple of the number of elasticsearch cluster nodes\footnote{It also works when this isn't the case, although the distribution is less optimal.}. With that in mind, the distribution is calculated by \texttt{rank \% N} with \texttt{\%} being the modulo operation and \texttt{N} the number of elasticsearch cluster nodes
+
   \item First, seek to the starting byte based on the rank.
   \item Create and send the requests blockingly, as fast as possible. Track each response time.
 
@@ -121,61 +125,51 @@ At the end of the setup phase, the offsets are sent to all workers using \texttt
 Once the data is gathered, the root dumps it into a \ac{JSON} file.
 
 \subsection{Distributed Query Benchmarker}
-% TODO mention in the appendix the query benchmarker input format
-% TODO mention in the appendix the query benchmarker output format
-% TODO mention in the appendix the query benchmarker CLI interface
-% - What
-%   - Measuring the docs per sec and latency of an elasticsearch cluster when put under load
-%   - Uses a fork-join like model with multiple queries in a single task
-%   - Features
-%     - Distributed load generators coordinating using MPI
-%     - Fully configurable by a dsl-like json standard; no hard coded scenarios
-%       - DSL uses the Elasticsearch query language internally; very accessible
-%       - can be extended without editing the source code
-%     - Easy portability from rally
-%     - bypassing cache
-%     - Minimal overhread
-%     - test mode for verifying the correctness of custom benchmarks
-%     - Instead of a standard http load generator it actually parses the 
-%       result to extract the number of fetched docs
-%     - Supports mixing multiple queries at the same time
-% - The Goal
-%   - latency when producing a specific load
-%   - throughput in docs/sec
-% - How it works
-%   - Load arguments and JSON based query benchmark description
-%     - See json example and CLI in the appendix
-%   - Let every rank calculate which elasticsearch server it sends to
-%     - same algorithm as for the ingestor
-%       - calculated as `rank % len(all_hosts)` for even distribution
-%   - Start the actual benchmark. For each benchmark step:
-%     - root (rank 0) waits until cluster health is green. Rest waits with barrier
-%       - cite cluster health api and explain what green means
-%     - Create random permutation of all queries for this step in each rank
-%       - We do this to even the distribution load
-%     - if warmup time is set
-%       - until the warmup is done
-%         - send the next query, throw away the result
-%           - Explain that, even though we configure both the query and index to ignore caching
-%             there is still some possible caching from the OS (memory caches, page cache)
-%         - if configured, sleep between results
-%     - until the execution time is done
-%       - choose the next request
-%       - Track time right before the request
-%       - do the request, search API endpoint, cahce explicitly disablled
-%         - cite https://www.elastic.co/guide/en/elasticsearch/reference/current/shard-request-cache.html#_enabling_and_disabling_caching_per_request
-%       - track time right after the receiving
-%         - even before the processing to keep our time overhead as low as possible and to maximize our
-%           likelyhood of it being more atomic-y
-%       - If successful HTTP response code
-%         - Count the number of returned documents
-%         - save the (latency, docs) for the current query and rank
-%       - else:
-%         - save the http code for current query and rank
-%       - if configured, sleep between requests
-%   - Afterwords, merge results of all ranks using MPI gather and some data transformation
-%     - See output format in the appendix
-%   - Root dumps it into JSON file specified via CLI parameter
+While the last section focused on the ingestion (write) performance, this section will focus on benchmarking the query (read) performance of an elasticsearch cluster. The benchmarker also generates its load in a distributed manner using the \ac{MPI} environment provided by SLURM. It measures the docuemnts per second as well as the request latency of an cluster when put under load. The benchmark is structed using a fork-join like model. 
+
+The distributed query benchmarker has the following features:
+\begin{itemize}
+  \item Fully configurable by a \ac{DSL}-like \ac{JSON} standard; no hard coded scenarios.
+
+    The \ac{DSL} uses Elasticsearch embeds the elasticsearch query language internally, making it very accessible to all elasticsearch users. Furthermore, this allows extending the benchmarking scenarios without the need of editing the source code. Since the language is a simplification of rallys \ac{DSL}, elastics official benchmarks can be ported easily. An example of a ported rally benchmark can be found in the accompanying repository.
+
+    Also, an example input file using the custom \ac{DSL} can be found in the appendix.
+  \item Measuring raw performance by bypassing the cache\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/shard-request-cache.html\#_enabling_and_disabling_caching_per_request}}.
+  \item Supporting a test mode for verifying the correctness of custom benchmarks
+  \item Parsing the elasticsearch response instead of just relying on the HTTP response like normal HTTP benchmarker. This is done to count the number of returned documents.
+  \item Supporting multiple, alternating queries in a single fork-join task for creating a more realistic load.
+\end{itemize}
+
+On a technical level, each benchmark starts with the following prepararation.
+\begin{itemize}
+  \item First, all \ac{CLI} arguments and the benchmark description are parsed. The benchmark description is written in the aforementioned, JSON-based custom DSL with the Elasticsearch Search API Syntax embedded into it. 
+    \begin{itemize}
+      \item Note that an example query benchmark description as well as the \ac{CLI} interface structure of the both benchmarkers can be found in the appendix.
+    \end{itemize}
+  \item After that, every rank calculates which elasticsearch server it sends its load to. See the ingest benchmarker section for a more detailed description on how this selection algorithm works.
+\end{itemize}
+
+Once all ranks are ready, the actual benchmark starts. For each of the fully disjunct benchmark steps, the following steps are performed:
+\begin{itemize}
+  \item First, the root node, i.e. \ac{MPI} rank 0, waits for the cluster health to be green while the other nodes wait at a \ac{MPI} barrier, ready to benchmark. This is done in case the data was just ingested or the cluster was just started on-demand.
+  \item As mentioned above, each benchmark step can contain multiple queries, which will then be executed in an alternating manner to simulate a more varied load on the server. Since all ranks start executing the queries at the same time, it could happen that all ranks are in-sync, sending the exact same query at the same time, which would not be a realistic load. To prevent this, each rank creates a random permutation of all queries for this step.
+  \item If the warmup time is set:
+    \begin{itemize}
+      \item Send the next query, throw away the result. This is needed to get the caches filled before starting the measurements; therefore reducing the variance of the result data. The index is configured to not do any caching on an Elasticsearch level, however the OS will still do caching, both on a CPU L1/L2/L3 level as well as I/O caching through the page and buffer cache.
+      \item Sleep between results if a waiting time is configured.
+    \end{itemize}
+  \item Once the warmup is done, the following steps are done until the configured execution time is reached:
+    \begin{itemize}
+      \item Select the next query
+      \item Track the current time right before sending the request
+      \item Do the request containing the query against the search API endpoint. Note that the cache is explicitly disabled, both on an index level and on an request level\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/shard-request-cache.html\#_enabling_and_disabling_caching_per_request}}.
+      \item Track the time right after the response was received, before processing the result. This is done for two reasons: First, it minimizes the measurement overhead created by the benchmarker itself and isolates the time Elasticsearch needed for creating and sending the response. Second, it increases the likelyhood of our operation to be atomic, i.e. that the OS scheduler will preempt the process by giving the CPU time to another process before the measurement was finished.
+      \item Next, it will process and record the result based on the HTTP response code. If it was successful\footnote{i.e. a 2xx HTTP response code}, it will count the number of received documents and will save a tuple \texttt{(latency, docs count)} for the current query and rank. If the request was unsuccessful, it saves the HTTP code for the current query and rank. Note that this all happens in Memory, no slow I/O is done in order to minimize the benchmarker overhead.
+      \item Lastly, sleep between results if a waiting time is configured.
+    \end{itemize}
+\end{itemize}
+
+Once all measurements are created, the results of all ranks get merged at the root using \ac{MPI} gather as well as some data transformation. The resulting output format can be seen in the appendix. To finish the execution, the root dumps the JSON-formatted results at a path specified via a \ac{CLI} paramter.
 
 \subsubsection{Test Mode}
 % - also test mode for debugging query configurations
@@ -214,7 +208,8 @@ Once the data is gathered, the root dumps it into a \ac{JSON} file.
 %         - Same queries elasticsearch uses internally
 
 
-\section{Results}
+\section{Test Run and Analysis}
+% TODO the goal is to confirm that it works in general
 % - Setup
 %   - Running on Emmy
 %     - mention HW here, atm 3 gcn2 nodes
@@ -253,3 +248,5 @@ Once the data is gathered, the root dumps it into a \ac{JSON} file.
 % - Bring it into production
 % - find a way to make the load distributor to cluster node mapping network topology aware
 % - doing larger scale benchmarks
+
+% TODO FUTURE WORK DATA LAKE ENCRYPTION MENTION THAT WE ACTUALLY DO THAT RN
