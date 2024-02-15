@@ -192,24 +192,27 @@ To create and run a benchmark, the following steps have to be done:
 \end{enumerate}
 
 \subsubsection{Corpus and Query Design}
-% TODO mention in the appendix the example document
-% - Corpora
-%   - `nyc_taxis`
-%     - TODO explain where it is from
-%     - TODO: Note that, due to the numeric nature, we could not do a lot of string matching
-%       - note that example doc in appendix
-%     - Inspiration from rally, their biggest benchmark, due to that it is the default benchmark in literature
-%       - There are 2 canonical benchmarks for our use case, and that one fits better
-%         - nyc taxis: whenever the corpus has to be big
-%         - geonames: for testing all features (link to all their challenges!)
-%     - TODO put me somewhere else: Design of benchmark
-%       - first just IO benchmark with simplest query `match_all` with sizes (10 (i.e. not specified), 100, 1000, 10000)
-%       - then the same with same range query elasticsearch also uses for their regression testing
-%       - then range and match all both at the same time for some alterantive load
-%       - then decrease the request frequency and see how it behaves
-%       - Lastly test some histogram aggregation based on auto or manual bucketing
-%         - Same queries elasticsearch uses internally
+The benchmark created for this report is a port of rallys \texttt{nyc\_taxis} track \cite{nyctaxis}. Its corpus contains New York taxi data, more specifically all rides that have been performed in yellow taxis in New York in 2015. This data gets published every year by the NYC Taxi and Limousine Commision and can be freely downloaded \cite{tlcdata}. An example corpus document can be found in the appendix.\\
 
+This benchmark was chosen as it is one of the two rally benchmarks most often used in literature, \texttt{geonames} and \texttt{nyc\_taxis}. In the literature, both of these benchmarks have a specific purpose. 
+
+\paragraph{\texttt{nyc\_taxis}} is mainly used as a scaling test because of its big corpus size with over 165 million documents and comparatively big document size. The documents are very numeric, which makes the data set great for benchmarking range queries and aggregations such as histograms. It can't be used for thorough benchmarking of string matching capabilities.
+
+\paragraph{\texttt{geonames}} is mostly used as a regression test for various features. It has a very balanced document, containing text, keywords, numbers as well as geolocations. The main advantage of \texttt{geonames} is the amount of queries designed for it, including text and keyword matching, several aggregation, scroll API, Elasticsearchs expression and painless scripting languages and many more niche features of Elasticsearch.
+
+Since the internal use case at the GWDG is mainly around fuzzy matching and range queries running on large corpora in an \ac{HPC} environment, the \texttt{nyc\_taxis} track is a better fit.\\
+
+
+For the measurements done in this report, a full query benchmark was designed, loosely based on the one provided by Elastic. Note that the main purpose of this benchmark is to provide a starting point on how to design Elasticsearch queries for this benchmarker. 
+
+It contains the following benchmark steps:
+\begin{itemize}
+  \item Simple, non-filtering \texttt{match\_all}\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-match-all-query.html}} requests, with response size of 10, 100, 1000, or 10000 documents. This is done to benchmark the base I/O performance and response size scaling.
+  \item Next a \texttt{range} query\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-range-query.html}}, again scaling up the number of documents between each step. The range query is the exact same one also used by Rally.
+  \item After that, it alternates the \texttt{range} and \texttt{match\_all} query in the same benchmark step. This is done to simulate a more varied and realistic load.
+  \item In order to measure the latency change given less load, the \texttt{match\_all} query gets executed with 0.02, 0.05, 0.1, 0.2, 0.5, and 1 second sleep between each request.
+  \item Lastly, multiple histogram aggregations, either with automatic or manual bucketing, are being executed, all designed by Elastic. This allows us to measure aggregation performance while also being comparable to other benchmarks made with Rally.
+\end{itemize}
 
 \section{Test Run and Analysis}
 % TODO the goal is to confirm that it works in general
