@@ -258,14 +258,7 @@ A possible solution would be to compute the optimal mapping every time before st
 Unfortunately, this solution would overall worsen the benchmark results since, based on the current overall network usage, the routing could change between benchmarks, making the configuration indetermistic and thus the results unreproducable.
 
 \section{Conclusion}
+For the completion of this report, a zero-configuration workflow for automatically spawning and re-spawning a stateful Elasticsearch cluster was developed, allowing for job-based on-demand metadata processing as part of sophisticated job pipelines. Furthermore, a complete distributed benchmarking workflow was developed, including a ingestion benchmarker and a query benchmarker, allowing for large-scale benchmarks in \ac{HPC} environments. An example benchmark commonly used in the literature was successfully ported, executed, and analyzed. The code is fully accessible via GitHub, allowing it to be used as a platform for future performance research.
 
 \subsection{Future Work}
-% - We could have also used the `took` key in the search API response: <https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html#search-api-response-body>
-%   - see what it includes and excludes
-%   - describe since how little overhead we have measuring (first measure, then validate) how we trust ourselves more than making sure that elasticsearches overhead is predictable
-% - Circumvent the 10k limitation using either scroll API or `search_after`
-% - Bring it into production
-% - find a way to make the load distributor to cluster node mapping network topology aware
-% - doing larger scale benchmarks
-
-% TODO FUTURE WORK DATA LAKE ENCRYPTION MENTION THAT WE ACTUALLY DO THAT RN
+As part of the data lake work at the GWDG, this benchmarker will be used to evaluate different encryption strategies based on their performane penalty. In general, most of the future work will be in the usage of the benchmarker for for doing large-scale benchmarks, not in the extension of the benchmarker itself. As described in the Challenges, the primary open problem is figuring out how to handle response sizes larger than \texttt{index.max\_result\_window} through the methods above. Lastly, a collection of common benchmarks that can be used for this benchmarker has to still be created over time.
