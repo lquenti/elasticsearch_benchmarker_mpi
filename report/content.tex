@@ -10,7 +10,7 @@ In addition, the data lake related use cases at the GWDG include spawning Elasti
 \subsection{Goals and Contributions}
 The goals of this report are twofold: First, providing and implementing an stateful architecture to dynamically spawn and respawn an Elasticsearch cluster without any previous manual configuration. Second, design a highly-scalable, \ac{HPC}-native, distributed Elasticsearch benchmarking framework for both ingestion and querying performance. 
 
-In order to achive these goals, the following contributions were made:
+In order to achieve these goals, the following contributions were made:
 
 \begin{itemize}
 \item Design and implementation of a zero-configuration workflow to spawn a rootless, containerized Elasticsearch cluster of arbitrary size within an SLURM-allocated \ac{MPI} environment.
@@ -19,13 +19,13 @@ In order to achive these goals, the following contributions were made:
 \item Benchmark an dynamically spawned Elasticsearch cluster on \ac{HPC} using a canonical dataset common in existing literature.
 \end{itemize}
 \subsection{Structure}
-This report is structured as follows: In section 2, Elasticsearch, the full text search engine and NoSQL database used, is introduced. After that, section 3 covers the related work starting with classical load generation before focussing on the literature around Elasticsearch benchmarking. In section 4, the methodology and design of all components is covered. First, it covers the design and internal workflow of the aforementioned cluster spawning mechanism. Then, it covers both the ingestion and query benchmarkers. Lastly, it focuses on the benchmark design by showing the steps required to perform the benchmarks and the reasoning behind the corpus and query design used in this specific benchmark. Lastly, in section 5 the results of the benchmark is shown, before going into further discussion and analysis in chapter 6. Concluding in chapter 7, the results are summarized and possible future work is shownis shown.
+This report is structured as follows: In section 2, Elasticsearch, the full text search engine and NoSQL database used, is introduced. After that, section 3 covers the related work starting with classical load generation before focussing on the literature around Elasticsearch benchmarking. In section 4, the methodology and design of all components is covered. First, it covers the design and internal workflow of the aforementioned cluster spawning mechanism. Then, it covers both the ingestion and query benchmarkers. Lastly, it focuses on the benchmark design by showing the steps required to perform the benchmarks and the reasoning behind the corpus and query design used in this specific benchmark. Lastly, in section 5 the results of the benchmark is shown, before describing the open problems and challenges in chapter 6. Concluding in chapter 7, the results are summarized and possible future work is shown.
 
 \section{Background}
 \subsection{Elasticsearch}
 Elasticsearch is a distributed search engine initially developed in 2010. Since it stores its data in a document model, it can also be seen as a NoSQL database. The full text search is internally relies on the Apache Lucene library. It is mainly used for its full text fuzzy search capabilities and its \ac{JSON}-based REST interface. It is used by many large websites such as Wikipedia\footnote{Wikipedia also used Lucene beforehand.}, Netflix, Stackoverflow, and LinkedIn.
 
-In Elasticsearch, a collection of \emph{documents} are stored in an \emph{index}. Documents are equivalent to, and can be sent in the form of, \ac{JSON} objects. They can be nested. Each index has a \emph{schema}, which is a type mapping for each of the key-value pairs contained in the index\footnote{Akin to a SQL database definition.}. This mapping can either be static or dynamically guessed based. The index data can be \emph{queried} using Elasticsearchs own \ac{DSL}, again relying on \ac{JSON} and REST as the foundational technology.
+In Elasticsearch, a collection of \emph{documents} are stored in an \emph{index}. Documents are equivalent to, and can be sent in the form of, \ac{JSON} objects. They can be nested. Each index has a \emph{schema}, which is a type mapping for each of the key-value pairs contained in the index\footnote{Akin to a SQL database definition.}. This mapping can either be static or dynamically guessed. The index data can be \emph{queried} using Elasticsearchs own \ac{DSL}, again relying on \ac{JSON} and REST as the foundational technology.
 
 In 2021, due to a license change from Apache 2.0 to a more permissive license, OpenSearch was created as an Elasticsearch fork, which is maintained by several companies such as AWS.
 
@@ -38,36 +38,34 @@ Different benchmarking scenarios are defined as so-called \emph{tracks}. Every t
 
 The rally framework is actively used in literature for benchmarking Elasticsearch clusters \cite{rallyusecase1} \cite{rallyusecase2} \cite{rallyusecase3}. As mentioned in the introduction, it was not a viable choice for this paper due to the underlying actor framework not scaling into more 128 nodes in previous experiments.\\
 
-In the field of \ac{TSDB} benchmarking, the canonical solution to compare the performance of different \acp{TSDB} is Timescale's \ac{TSBS} \cite{tsbs}, a fork of Influx influxdb-comparisons \cite{ifdbcomp}. The benchmark started as a comparison between InfluxDB\footnote{\url{https://www.influxdata.com/}} and Elasticsearch \cite{ifdbes}. Unfortunately, both repositories seem to be mostly abandoned.\\
-
 Furthermore, most of the benchmark comparisons between NoSQL databases are done by database vendors themselves, resulting in conflicting financial interests.
 
 \section{Methodology and Design}
 The Methodlogy and Design section is split into four parts: First, the autoconfigured Elasticsearch cluster spawner is presented. After that, the next two subsections cover the distributed ingestion and query benchmarker respectively, going into a lot of reasoning and technical detail. Lastly, the overall benchmark design used for this report is discussed, focusing mainly on the high level benchmark workflow as well as the corpus and query design.
 
 \subsection{Dynamic Cluster Creation Based on MPI Communicator}
-This section presents an automated approach to to configuring and spawning a multi node Elasticsearch cluster based solely on the \ac{MPI} environment set up by SLURM. It dynamically fetches the different hosts, i.e. it is not required to know the hostnames or IPs beforehand. The cluster is very portable since it is using Singularity \cite{singularity} containers as a elasticsearch host. Any cluster size larger or equal to two nodes is supported.
+This section presents an automated approach to configuring and spawning a multi node Elasticsearch cluster based solely on the \ac{MPI} environment set up by SLURM. It dynamically fetches the different hosts, i.e. it is not required to know the hostnames or IPs beforehand. The cluster is very portable since it is using Singularity \cite{singularity} containers as a Elasticsearch host. Any cluster size larger or equal to two nodes is supported.
 
-Furthermore, it supports \emph{statefulness}, which means that the same cluster can be re-spawned on other nodes\footnote{With the same cluster size.} without requiring a re-ingest, i.e. keeping the complete cluster state and configuration. Due to the aforementioned containerization, this also works while changing both the hardware and IP addresses. The only limitation is that it only supports one elasticsearch node per host OS. This is by design, as we use hostname-based resolution instead of IP-based resolution to be agnostic to the \ac{NIC} used\footnote{Being \ac{NIC} agnostic implies that it supports both ethernet and infiniband.}. 
+Furthermore, it supports \emph{statefulness}, which means that the same cluster can be re-spawned on other nodes\footnote{With the same cluster size.} without requiring a re-ingest, i.e. keeping the complete cluster state and configuration. Due to the aforementioned containerization, this also works while changing both the hardware and IP addresses. The only limitation is that it only supports one Elasticsearch node per host OS. This is by design, as we use hostname-based resolution instead of IP-based resolution to be agnostic to the \ac{NIC} used\footnote{Being \ac{NIC} agnostic implies that it supports both ethernet and infiniband.}. 
 
 This automatic containerization has the big advantage that it can be embedded into any kind of job pipeline. While most web services require a continuously running search engine, it is common in \ac{HPC} that applications are spawned on demand only when needed and teared down once the computation is performed. More importantly, it allows for Elasticsearch to be implicitly spawned as a dependency for other, more cloud-native applications running in \ac{HPC}.\\
 
-The high level idea is as follows: For discovery and information communication, \ac{MPI} is used. Furthermore, based on the world size, the number of master eligable nodes is decided\footnote{If $N \leq 3$ then 1 master eligable node, otherwise 3 master eligable nodes. Note that only one master is active at a time. A odd number was chosen to prevent split brain.}. After that, each node creates a config and runtime environment for itself. Lastly, each process spawns its container using its newly generated config.\\
+The high level idea is as follows: For discovery and information communication, \ac{MPI} is used. Furthermore, based on the world size, the number of master eligible nodes is decided\footnote{If $N \leq 3$ then 1 master eligable node, otherwise 3 master eligible nodes. Note that only one master is active at a time. A odd number was chosen to prevent split brain.}. After that, each node creates a config and runtime environment for itself. Lastly, each process spawns its container using its newly generated config.\\
 
-For better portability and reproducability the cluster generator uses Singularity containers internally\footnote{Note that, due to Elasticsearch JDK problems, Singularity has to be started with \texttt{-{}-cleanenv}. Therefore environment variables get ignored within the container.}. The container is based on the official Ubuntu 22.04 docker image\footnote{\url{https://hub.docker.com/_/ubuntu}}, only adding packages for debugging and maintenance. Elasticsearch itself is not part of the image and completely bind-mounted in; there are multiple reasons for this: First, unlike docker, Singularity containers are always immutable, so the program state itself has to always be bind-mounted in. Furthermore, Elasticsearch expects to be the owner of its folders. If Elasticsearch is not the folder owner, it disables multiple features such as internal auto-configuration. Since Singularity is rootless, the correct uid for the folders can't be enforced. Therefore, the most straight forward and stable solution is bind-mounting it in.\\
+For better portability and reproducibility the cluster generator uses Singularity containers internally\footnote{Note that, due to Elasticsearch JDK problems, Singularity has to be started with \texttt{-{}-cleanenv}. Therefore environment variables get ignored within the container.}. The container is based on the official Ubuntu 22.04 docker image\footnote{\url{https://hub.docker.com/_/ubuntu}}, only adding packages for debugging and maintenance. Elasticsearch itself is not part of the image and completely bind-mounted in; there are multiple reasons for this: First, unlike docker, Singularity containers are always immutable, so the program state itself has to always be bind-mounted in. Furthermore, Elasticsearch expects to be the owner of its folders. If Elasticsearch is not the folder owner, it disables multiple features such as internal auto-configuration. Since Singularity is rootless, the correct uid for the folders can't be enforced. Therefore, the most straight forward and stable solution is bind-mounting it in.\\
 
 On a high level, the spawner works as follows:
 \begin{itemize}
-  \item First, check if the elasticsearch index data from last run can be reused. This is the case if the number of nodes stayed the same. If not, create a new elasticsearch into a temporary directory.
+  \item First, check if the Elasticsearch index data from last run can be reused. This is the case if the number of nodes stayed the same. If not, create a new Elasticsearch into a temporary directory.
   \item \texttt{MPI\_GATHER} a list of tuples \texttt{(rank, hostname)} into the root rank 0.
   \item For each node, the root creates/updates the config; the other nodes are waiting. Note that through updating the config instead of creating a new one the cluster stays intact, which is how the statefulness is implemented. An example config can be found in the appendix.
-  \item Lastly, each rank starts the immutable singularity container with the new config and previously created elasticsearch mounted in.
+  \item Lastly, each rank starts the immutable singularity container with the new config and previously created Elasticsearch mounted in.
 \end{itemize}
 
 \newpage
 
 \subsection{Distributed Ingestion Benchmarker}
-This section introduces the distributed, \ac{MPI}-based ingestion benchmarker. It is used both for providing a fast way to ingest an \ac{JSON}-formatted corpus into an elasticsearch cluster as well as measuring the performance of write operations in throughput as well as latency. The benchmarker itself is very I/O optimized, using so-called offset caching for reducing redundant filesystem load between workers. It supports statically typed index definitions, configurable bulk size as well as a configurable number of shards. It supports all corpora designed for elastics own rally benchmarker by using \ac{NDJSON} as an input format\footnote{Another big advantage of \ac{NDJSON} is that downscaling the benchmark is trivial using\\\texttt{head -n <NEW\_NUMBER> original.json > downscaled.json}}. The \ac{CLI} interface with all its features can be found in the appendix.\\
+This section introduces the distributed, \ac{MPI}-based ingestion benchmarker. It is used both for providing a fast way to ingest an \ac{JSON}-formatted corpus into an Elasticsearch cluster as well as measuring the performance of write operations in throughput as well as latency. The benchmarker itself is very I/O optimized, using so-called offset caching for reducing redundant filesystem load between workers. It supports statically typed index definitions, configurable bulk size as well as a configurable number of shards. It supports all corpora designed for elastics own rally benchmarker by using \ac{NDJSON} as an input format\footnote{Another big advantage of \ac{NDJSON} is that downscaling the benchmark is trivial using\\\texttt{head -n <NEW\_NUMBER> original.json > downscaled.json}}. The \ac{CLI} interface with all its features can be found in the appendix.\\
 
 The benchmark can be split into three phases:
 
@@ -98,8 +96,8 @@ Note that those steps are done by only the root / rank 0.
 
   \item Create an (empty) Elasticsearch index. It is created using the following settings:
     \begin{itemize}
-      \item Strict type mappings for reproducability. Elasticsearch allows for dynamic schemas, which means that the datatype is interpreted when the first data arrives. When using a distributed benchmarker, it is not clear which rank sends the first bulk ingest request. Thus, indeterministic or unexpected behaviour could occur. So instead, using elasticsearchs own type sytem\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-types.html}} and \ac{DSL}\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html}} the type mapping can be defined statically and used by the benchmarker.
-      \item The number of shards explicitly set, defaulting to one shard per elasticsearch node. This means that every node gets data while still keeping the sharding complexity as trivial as possible. This is configurable via the \ac{CLI} interface.
+      \item Strict type mappings for reproducability. Elasticsearch allows for dynamic schemas, which means that the datatype is interpreted when the first data arrives. When using a distributed benchmarker, it is not clear which rank sends the first bulk ingest request. Thus, indeterministic or unexpected behaviour could occur. So instead, using Elasticsearchs own type system\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-types.html}} and \ac{DSL}\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html}} the type mapping can be defined statically and used by the benchmarker.
+      \item The number of shards explicitly set, defaulting to one shard per Elasticsearch node. This means that every node gets data while still keeping the sharding complexity as trivial as possible. This is configurable via the \ac{CLI} interface.
       \item Explicity disable caching through \texttt{requests.cache.enable}\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/shard-request-cache.html}}
     \end{itemize}
 \end{itemize}
@@ -107,14 +105,14 @@ At the end of the setup phase, the offsets are sent to all workers using \texttt
 
 \paragraph{Benchmark:} This work is done by each rank including the root.
 \begin{itemize}
-  \item Each rank computes to which elasticsearch node it should send the data. 
+  \item Each rank computes to which Elasticsearch node it should send the data. 
 
-    It is assumed that the user understands that this distribution is a problem that has to be solved. Thus, it is assumed that the \ac{MPI} world size is a multiple of the number of elasticsearch cluster nodes\footnote{It also works when this isn't the case, although the distribution is less optimal.}. With that in mind, the distribution is calculated by \texttt{rank \% N} with \texttt{\%} being the modulo operation and \texttt{N} the number of elasticsearch cluster nodes
+    It is assumed that the user understands that this distribution is a problem that has to be solved. Thus, it is expected that the \ac{MPI} world size is a multiple of the number of Elasticsearch cluster nodes\footnote{It also works when this isn't the case, although the distribution is less optimal.}. With that in mind, the distribution is calculated by \texttt{rank \% N} with \texttt{\%} being the modulo operation and \texttt{N} the number of Elasticsearch cluster nodes
 
-  \item First, seek to the starting byte based on the rank.
+  \item Next, seek to the starting byte based on the rank.
   \item Create and send the requests blockingly, as fast as possible. Track each response time.
 
-    The requests are sent in bulk using elasticsearches Bulk API\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html}} with a default bulk size of 1000 documents, configurable via CLI parameter.
+    The requests are sent in bulk using Elasticsearches Bulk API\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html}} with a default bulk size of 1000 documents, configurable via CLI parameter.
 
     The measurements are done with utmost care to be as precise as possible and minimize the overhead created by the benchmarker itself. Thus, the delta recorded only measures the time directly before and after the HTTP request, removing the query building overhead.
   \item Once all data was sent, the workers wait at an \ac{MPI} barrier for the other workers to finish.
@@ -125,28 +123,25 @@ At the end of the setup phase, the offsets are sent to all workers using \texttt
 Once the data is gathered, the root dumps it into a \ac{JSON} file.
 
 \subsection{Distributed Query Benchmarker}
-While the last section focused on the ingestion (write) performance, this section will focus on benchmarking the query (read) performance of an elasticsearch cluster. The benchmarker also generates its load in a distributed manner using the \ac{MPI} environment provided by SLURM. It measures the docuemnts per second as well as the request latency of an cluster when put under load. The benchmark is structed using a fork-join like model. 
+While the last section focused on the ingestion (write) performance, this section will focus on benchmarking the query (read) performance of an Elasticsearch cluster. The benchmarker also generates its load in a distributed manner using the \ac{MPI} environment provided by SLURM. It measures the docuemnts per second as well as the request latency of an cluster when put under load. The benchmark is structed using a fork-join like model. 
 
 The distributed query benchmarker has the following features:
 \begin{itemize}
   \item Fully configurable by a \ac{DSL}-like \ac{JSON} standard; no hard coded scenarios.
 
-    The \ac{DSL} uses Elasticsearch embeds the elasticsearch query language internally, making it very accessible to all elasticsearch users. Furthermore, this allows extending the benchmarking scenarios without the need of editing the source code. Since the language is a simplification of rallys \ac{DSL}, elastics official benchmarks can be ported easily. An example of a ported rally benchmark can be found in the accompanying repository.
+    The \ac{DSL} uses Elasticsearch embeds the Elasticsearch query language internally, making it very accessible to all Elasticsearch users. Furthermore, this allows extending the benchmarking scenarios without the need of editing the source code. Since the language is a simplification of rallys \ac{DSL}, elastics official benchmarks can be ported easily. An example of a ported rally benchmark can be found in the accompanying repository.
 
     Also, an example input file using the custom \ac{DSL} can be found in the appendix.
   \item Measuring raw performance by bypassing the cache\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/shard-request-cache.html\#_enabling_and_disabling_caching_per_request}}.
   \item Supporting a test mode for verifying the correctness of custom benchmarks
-  \item Parsing the elasticsearch response instead of just relying on the HTTP response like normal HTTP benchmarker. This is done to count the number of returned documents.
+  \item Parsing the Elasticsearch response instead of just relying on the HTTP response like normal HTTP benchmarker. This is done to count the number of returned documents.
   \item Supporting multiple, alternating queries in a single fork-join task for creating a more realistic load.
 \end{itemize}
 
 On a technical level, each benchmark starts with the following prepararation.
 \begin{itemize}
-  \item First, all \ac{CLI} arguments and the benchmark description are parsed. The benchmark description is written in the aforementioned, JSON-based custom DSL with the Elasticsearch Search API Syntax embedded into it. 
-    \begin{itemize}
-      \item Note that an example query benchmark description as well as the \ac{CLI} interface structure of the both benchmarkers can be found in the appendix.
-    \end{itemize}
-  \item After that, every rank calculates which elasticsearch server it sends its load to. See the ingest benchmarker section for a more detailed description on how this selection algorithm works.
+  \item First, all \ac{CLI} arguments and the benchmark description are parsed. The benchmark description is written in the aforementioned, JSON-based custom DSL with the Elasticsearch Search API Syntax embedded into it. An example query benchmark description as well as the \ac{CLI} interface structure of the both benchmarkers can be found in the appendix.
+  \item After that, every rank calculates which Elasticsearch server it sends its load to. See the ingest benchmarker section for a more detailed description on how this selection algorithm works.
 \end{itemize}
 
 Once all ranks are ready, the actual benchmark starts. For each of the fully disjunct benchmark steps, the following steps are performed:
@@ -163,7 +158,7 @@ Once all ranks are ready, the actual benchmark starts. For each of the fully dis
       \item Select the next query
       \item Track the current time right before sending the request
       \item Do the request containing the query against the search API endpoint. Note that the cache is explicitly disabled, both on an index level and on an request level\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/shard-request-cache.html\#_enabling_and_disabling_caching_per_request}}.
-      \item Track the time right after the response was received, before processing the result. This is done for two reasons: First, it minimizes the measurement overhead created by the benchmarker itself and isolates the time Elasticsearch needed for creating and sending the response. Second, it increases the likelyhood of our operation to be atomic, i.e. that the OS scheduler will preempt the process by giving the CPU time to another process before the measurement was finished.
+      \item Track the time right after the response was received, before processing the result. This is done for two reasons: First, it minimizes the measurement overhead created by the benchmarker itself and isolates the time Elasticsearch needed for creating and sending the response. Second, it increases the likelyhood of our operation to be atomic, i.e. that the OS scheduler will not preempt the process by giving the CPU time to another process before the measurement was finished.
       \item Next, it will process and record the result based on the HTTP response code. If it was successful\footnote{i.e. a 2xx HTTP response code}, it will count the number of received documents and will save a tuple \texttt{(latency, docs count)} for the current query and rank. If the request was unsuccessful, it saves the HTTP code for the current query and rank. Note that this all happens in Memory, no slow I/O is done in order to minimize the benchmarker overhead.
       \item Lastly, sleep between results if a waiting time is configured.
     \end{itemize}
@@ -182,10 +177,10 @@ While designing several benchmarks, it helped finding broken queries generating 
 \subsubsection{High Level Benchmark Workflow}
 To create and run a benchmark, the following steps have to be done:
 \begin{enumerate}
-  \item Choose a dataset or create a synthetic one. The dataset has to be formatted in the \texttt{ndjson} format, which is defined as one JSON object per line. Datasets for many common Elasticsearch use cases can be found in Elastics rally-tracks repository \cite{rallytracks}.
+  \item Choose a dataset or create a synthetic one. The dataset has to be formatted in the \ac{NDJSON} format, which is defined as one JSON object per line. Datasets for many common Elasticsearch use cases can be found in Elastics rally-tracks repository \cite{rallytracks}.
   \item Define the data type mappings for each corpus attribute using the Elasticsearch index mapping syntax\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/properties.html}}. An example can be found in the repository.
-  \item Design the query document. This basically consists of embedding the elasticsearch search API queries into a bigger JSON structure defining the benchmark steps.  Note that the queries itself do not have to be altered, thus they can also easily be constructed using cURL. Since Elastics rally uses also uses the search API syntax, their benchmarks can easily be ported. For each benchmark step the warmup time, execution time, and sleep time between each request can be defined optionally. The query document format can be found in the appendix, a ported benchmark from rally can be found in the repository.
-  \item Spawn up the automatically configured elasticsearch cluster using the \ac{MPI}-based cluster creator in a given SLURM-environment using \texttt{mpirun}. 
+  \item Design the query document. This basically consists of embedding the Elasticsearch search API queries into a bigger JSON structure defining the benchmark steps.  Note that the queries itself do not have to be altered, thus they can also easily be constructed using cURL. Since Elastics rally uses also uses the search API syntax, their benchmarks can easily be ported. For each benchmark step the warmup time, execution time, and sleep time between each request can be defined optionally. The query document format can be found in the appendix, a ported benchmark from rally can be found in the repository.
+  \item Spawn up the automatically configured Elasticsearch cluster using the \ac{MPI}-based cluster creator in a given SLURM-environment using \texttt{mpirun}. 
 
     Note that Elasticsearch requires a non-standard Kernel parameter to be set, a \texttt{vm.max\_map\_count} of at least 262144. This setting defines the maximum number of memory map areas per process. This is needed because Elasticsearch accesses the index data by mapping the files into memory using their so-called \texttt{mmapfs}\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html}}, based on Lucenes \texttt{MMapDirectory}\footnote{\url{https://lucene.apache.org/core/6_3_0/core/org/apache/lucene/store/MMapDirectory.html}}.
   \item Run the distributed ingest benchmarker with the previously created corpus and type mapping using \texttt{mpirun}.
@@ -249,13 +244,13 @@ There are at least three solutions to this problem:
   \item Use this Scroll API\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/scroll-api.html}}. This has the same problem as the \texttt{search\_after} API as it requires keeping the state of a previous search query. Furthermore, according to Elastics documentation, its usage is discuraged for deep pagination of over 10000 elements.
 \end{enumerate}
 
-\paragraph{Load Generator to Cluster Node Mapping} As described in the methodology, each load generator sends its request to the same elasticsearch cluster node every time. To provide roughly even load distribution, the node number is calculated by \texttt{MPI\_rank \% N} with \texttt{\%} being the modulo operation and \texttt{N} the number of elasticsearch cluster nodes.
+\paragraph{Load Generator to Cluster Node Mapping} As described in the methodology, each load generator sends its request to the same Elasticsearch cluster node every time. To provide roughly even load distribution, the node number is calculated by \texttt{MPI\_rank \% N} with \texttt{\%} being the modulo operation and \texttt{N} the number of Elasticsearch cluster nodes.
 
 This node selection algorithm could result in a suboptimal usage of the network topology, resulting in longer package round trip times, for example requiring many hops in a fat tree structure.\\
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.5\textwidth]{./assets/fattree.png}
+  \includegraphics[width=0.7\textwidth]{./assets/fattree.png}
   \caption{An example of a fat tree. The leafs are nodes, the intermediate nodes are router. The higher the router, the more throughput it gets to provide to not limit the throughput by the higher degree nodes.}
 \end{figure}
 
