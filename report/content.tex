@@ -1,6 +1,6 @@
 \section{Introduction}
 \subsection{Motivation}
-In the space of \ac{HPC}, a significant trend is from more compute intensive tasks to more data intensive tasks is taking place. This change necessitates better data-management tooling such as data lakes or data warehoueses. Given that \ac{HPC} computes on raw data, data lakes are a more natural fit. Efficient metadata management requires a great metadata store as well as support for full text searches.
+In the space of \ac{HPC}, a significant trend from more compute intensive tasks to more data intensive tasks is taking place. This change necessitates better data-management tooling such as data lakes or data warehoueses. Given that \ac{HPC} computes on raw data, data lakes are a more natural fit. Efficient metadata management requires a great metadata store as well as support for full text searches.
 
 In this report, the viability of Elasticsearch\footnote{\url{https://www.elastic.co/elasticsearch}} for \ac{HPC} load is being evaluated. Elasticsearch benefits from many years of tooling development, making it a more pragmatic choice than building an own application around full text search engines like Apache Lucene\footnote{\url{https://lucene.apache.org/}} or Tantivy\footnote{\url{https://github.com/quickwit-oss/tantivy}}.
 
@@ -8,7 +8,7 @@ While elastic provides rally\footnote{\url{https://github.com/elastic/rally}}, a
 
 In addition, the data lake related use cases at the GWDG include spawning Elasticsearch instances on-demand. For this dynamic deployment, a containerized Elasticsearch cluster based on the underlying SLURM\footnote{\url{https://slurm.schedmd.com/documentation.html}} and \ac{MPI} is needed. It should auto-configure itself, in order to be IP-agnostic.
 \subsection{Goals and Contributions}
-The goals of this report are twofold: First, providing and implementing an stateful architecture to dynamically spawn and respawn any sized Elasticsearch cluster without any previous manual configuration. Second, design a highly-scalable, \ac{HPC}-native, distributed Elasticsearch benchmarking framework for both ingestion and querying performance. 
+The goals of this report are twofold: First, providing and implementing an stateful architecture to dynamically spawn and respawn an Elasticsearch cluster without any previous manual configuration. Second, design a highly-scalable, \ac{HPC}-native, distributed Elasticsearch benchmarking framework for both ingestion and querying performance. 
 
 In order to achive these goals, the following contributions were made:
 
@@ -252,6 +252,13 @@ There are at least three solutions to this problem:
 \paragraph{Load Generator to Cluster Node Mapping} As described in the methodology, each load generator sends its request to the same elasticsearch cluster node every time. To provide roughly even load distribution, the node number is calculated by \texttt{MPI\_rank \% N} with \texttt{\%} being the modulo operation and \texttt{N} the number of elasticsearch cluster nodes.
 
 This node selection algorithm could result in a suboptimal usage of the network topology, resulting in longer package round trip times, for example requiring many hops in a fat tree structure.\\
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.5\textwidth]{./assets/fattree.png}
+  \caption{An example of a fat tree. The leafs are nodes, the intermediate nodes are router. The higher the router, the more throughput it gets to provide to not limit the throughput by the higher degree nodes.}
+\end{figure}
+
 
 A possible solution would be to compute the optimal mapping every time before starting the benchmark. This could be done by measuring the round trip time between any pair of load generator and cluster node several times and using its mean or median average. Note that the lowest number can't always be used since all load generators have to be divided up onto the cluster nodes equally. Instead, this could be solved as a linear program\footnote{After some discussion with Johann Carl Meyer, who is a fellow student, I learned that this can be solved even more efficiently if seen as a optimal transport problem.}.\\
 
