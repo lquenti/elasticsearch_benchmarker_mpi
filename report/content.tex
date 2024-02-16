@@ -233,25 +233,29 @@ It contains the following benchmark steps:
 % thats enough, the raw data can be found in the repo
 
 \section{Challenges}
-The benchmarker still has two problems, both of which are not trivial to solve optimally.
+The design and implementation of the benchmarker still leaves two challenges open, both of which are not trivial to solve optimally.
 
-\paragraph{Response Size} 
+\paragraph{Response Size:} If not specified otherwise, the Elasticsearch Search API will only return the 10 elements, even if more matching documents exist in the index. This number can be increased by the \texttt{size} parameter\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html}}.
 
-\paragraph{Load Generator to Cluster Node Mapping}
-% - Problem: result size
-%   - Note that default size are the first 10 elements if not specified otherwise
-%   - specified by `index.max_result_window`, usual 10000
-%   - this means that we can only get the first 10k hits
-%   - Theoretically one can offset with `from + size`, but `from+size <= index.max_window`
-%   - Possible solutions:
-%      - Just use the first 10k, ignore it
-%        - Thats what elastic does with their official benchmarks, they only do size=1000 even with a 165 mil doc dataset
-%     - use the scroll API. 
-%       - Problem: It is stateful and requires a setup `search` query
-%       - blows up benchmark complexity
-%     - Use the `search_after` parameter for the serach API
-%       - Same problem, also requires an ID to be selected before, very complex especially load distributed
-% - Problem: our ES selection algorithm could result in a suboptimal network topology (i.e. long distance in fat tree)
+Unfortunately, due to performance reasons, this number can not be increased indefinitely. The maximum count of documents returnable by Elasticsearch is limited by the \texttt{index.max\_result\_window}\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules.html}} config setting, which defaults to 10000 documents. This means that only the first 10000 elements can be benchmarked. Theoretically, one can offset the result using the \texttt{from} paramter, practically Elasticsearch enforces the condition that \texttt{from+size <= index.max\_window}.\\
+
+There are at least three solutions to this problem:
+\begin{enumerate}
+  \item Design the benchmarks around this constraint. For \texttt{nyc\_taxis}, this is what was done by Elastic; this is also the approach in most of the literature.
+  \item Use the \texttt{search\_after} parameter for the search API\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html\#search-after}}. This parameter takes the \texttt{sort} offset from a previous query and computes the new result starting from that offset.
+
+    This approach several big disadvantages. First, it blows up the complexity of both the benchmark design as well as the benchmarker logic by requiring statefulness between requests. The requests can't be done in a random manner since they always have to keep the offsets from previous responses. Additionally it would make the benchmarking results harder to understand, as it may not be obvious how many requests were needed to get a specific amount of documents. Lastly, the \texttt{search\_after} parameter does not increase the complexity of each request, since it performs the same amount of work, except that it first seeks to a specific byte offset.
+
+  \item Use this Scroll API\footnote{\url{https://www.elastic.co/guide/en/elasticsearch/reference/current/scroll-api.html}}. This has the same problem as the \texttt{search\_after} API as it requires keeping the state of a previous search query. Furthermore, according to Elastics documentation, its usage is discuraged for deep pagination of over 10000 elements.
+\end{enumerate}
+
+\paragraph{Load Generator to Cluster Node Mapping} As described in the methodology, each load generator sends its request to the same elasticsearch cluster node every time. To provide roughly even load distribution, the node number is calculated by \texttt{MPI\_rank \% N} with \texttt{\%} being the modulo operation and \texttt{N} the number of elasticsearch cluster nodes.
+
+This node selection algorithm could result in a suboptimal usage of the network topology, resulting in longer package round trip times, for example requiring many hops in a fat tree structure.\\
+
+A possible solution would be to compute the optimal mapping every time before starting the benchmark. This could be done by measuring the round trip time between any pair of load generator and cluster node several times and using its mean or median average. Note that the lowest number can't always be used since all load generators have to be divided up onto the cluster nodes equally. Instead, this could be solved as a linear program\footnote{After some discussion with Johann Carl Meyer, who is a fellow student, I learned that this can be solved even more efficiently if seen as a optimal transport problem.}.\\
+
+Unfortunately, this solution would overall worsen the benchmark results since, based on the current overall network usage, the routing could change between benchmarks, making the configuration indetermistic and thus the results unreproducable.
 
 \section{Conclusion}
 
