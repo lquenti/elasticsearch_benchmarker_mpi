@@ -1,0 +1,14 @@
+[
+  {
+    "search_queries": [
+      {
+        /* everything in here just gets sent to ES */
+        "body": {
+          /* The raw ES query sent to the server */
+        }
+      }
+    ],
+    "warmup_time_secs": 30, /* optional */
+    "execution_time_secs": 120, /* optional */
+  },
+  ...

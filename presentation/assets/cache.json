@@ -1,0 +1,14 @@
+{
+  "number_of_workers":3,
+  "offsets":[
+    {
+      "rank":0,
+      "starting_line":0,
+      "starting_byte":0,
+      "number_of_lines":8333
+    },
+    { "rank":1, "starting_line":8333,
+      "starting_byte":4157901, "number_of_lines":8333 },
+    { "rank":2, "starting_line":16666,
+      "starting_byte":8315734, "number_of_lines":null }
+  ] }
