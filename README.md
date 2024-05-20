@@ -1,7 +1,5 @@
 # Code for "MPI-based Creation and Benchmarking of a Dynamic Elasticsearch Cluster"
 
-WIP report (some benchmarks missing), ETA late September 2024
-
 ## Structure
 - [`benchmarker`](./benchmarker) contains
   - The benchmarking code for ingestion
