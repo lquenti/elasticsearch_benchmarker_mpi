@@ -35,16 +35,6 @@
 \configuretitlepage
 
 \begin{document}
-
-  \begin{frame}{TODOs}
-    \begin{itemize}
-      \item Citations
-      \item Dr\"uberlesen
-      \item Capitalized start of bullet point
-      \item Daten von Hendrik
-    \end{itemize}
-  \end{frame}
-
 	\begin{frame}[plain]
 		\titlepage
 	\end{frame}
@@ -131,12 +121,12 @@
         \begin{block}{Benchmarking Elasticsearch}
           \begin{itemize}
             \item HPC is all about performance
-            \item Elastic's benchmarker: \emph{rally}
+            \item Elastic's benchmarker: \emph{rally} \cite{es_benchmarking}
               \begin{itemize}
                 \item Used for in-house performance regression testing
                 \item Written in Python
                 \item Distributed using \emph{thespian} agent framework
-                \item After previous research at GWDG: 
+                \item After previous unpublished research at GWDG: 
                   \begin{itemize}
                     \item Doesn't work with over 60 nodes
                   \end{itemize}
@@ -204,14 +194,14 @@
 
   \begin{frame}{Background: Benchmarking}
     \begin{itemize}
-      \item For elasticsearch: All literature uses rally
+      \item For elasticsearch: All literature uses rally \cite{rallyusecase1} \cite{rallyusecase2} \cite{rallyusecase3}
       \item Alternatives: Just use a HTTP benchmarker
         \begin{itemize}
-          \item JMeter
-          \item wrk
-          \item Grafana k6
+          \item JMeter \cite{jmeter}
+          \item wrk \cite{wrk}
+          \item Grafana k6 \cite{k6}
         \end{itemize}
-      \item Most NoSQL comparisons are done by database vendors
+      \item Most NoSQL comparisons are done by database vendors \cite{tsbs}
         \begin{itemize}
           \item Bad financial incentives
         \end{itemize}
@@ -492,10 +482,10 @@
   \begin{frame}{Benchmark}
     \begin{columns}
       \begin{column}{0.5\textwidth}
-        \begin{block}{Dataset: NYC Taxis}
+        \begin{block}{Dataset: NYC Taxis \cite{nyctaxis}}
           \begin{itemize}
             \item All yellow taxi rides in NYC in 2015
-            \item Published by NYC Taxi and Limousine Commision
+            \item Published by NYC Taxi and Limousine Commision \cite{tlcdata}
             \item 165 million documents, over 75GB
             \item Also used by Rally (Elastic)
             \item Most used for scaling testing
@@ -505,14 +495,38 @@
       \end{column}
       \begin{column}{0.5\textwidth}
         \begin{block}{Setup}
-          TODO
+          \begin{itemize}
+            \item 3 nodes on Emmy
+            \item Ethernet
+            \item Ubuntu 22.04 dockerhub image in Singularity
+            \item Elasticsearch 8.11.0 with OpenJDK 21.0.1
+            \item Python 3.9
+            \item OpenMPI 4.1
+          \end{itemize}
         \end{block}
       \end{column}
     \end{columns}
   \end{frame}
 
-  \begin{frame}{Results...}
-    frame
+  \begin{frame}{Results}
+    \begin{figure}
+      \includegraphics[height=0.9\textheight]{./analysis/wallclocktime.png}
+    \end{figure}
+  \end{frame}
+  \begin{frame}{Results}
+    \begin{figure}
+      \includegraphics[height=0.9\textheight]{./analysis/cputime.png}
+    \end{figure}
+  \end{frame}
+  \begin{frame}{Results}
+    \begin{figure}
+      \includegraphics[height=0.9\textheight]{./analysis/querythroughput.png}
+    \end{figure}
+  \end{frame}
+  \begin{frame}{Results}
+    \begin{figure}
+      \includegraphics[height=0.9\textheight]{./analysis/querythroughputsleep.png}
+    \end{figure}
   \end{frame}
 
 	\section{Conclusion}
@@ -540,11 +554,9 @@
         \end{enumerate}
     \end{itemize}
 	\end{frame}
-
-	\begin{frame}{References}
-		% References slide in appendix
-		\renewcommand*{\bibfont}{\normalfont\scriptsize}
-		\printbibliography[heading=none]
-	\end{frame}
+\begin{frame}[allowframebreaks]{References}
+\renewcommand*{\bibfont}{\normalfont\scriptsize}
+  \printbibliography
+\end{frame}
 
 \end{document}
