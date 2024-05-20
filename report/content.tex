@@ -38,7 +38,7 @@ Different benchmarking scenarios are defined as so-called \emph{tracks}. Every t
 
 The rally framework is actively used in literature for benchmarking Elasticsearch clusters \cite{rallyusecase1} \cite{rallyusecase2} \cite{rallyusecase3}. As mentioned in the introduction, it was not a viable choice for this paper due to the underlying actor framework not scaling into more than 128 nodes in previous experiments.
 
-Furthermore, most of the benchmark comparisons between NoSQL databases are done by database vendors themselves, resulting in conflicting financial interests.
+Furthermore, most of the benchmark comparisons between NoSQL databases such as tsbs \cite{tsbs} are done by database vendors themselves, resulting in conflicting financial interests.
 
 \section{Methodology and Design}
 The Methodology and Design section is split into four parts: First, the autoconfigured Elasticsearch cluster spawner is presented. After that, the next two subsections cover the distributed ingestion and query benchmarker respectively, including underlying reasoning as well as some technical details. Lastly, the overall benchmark design used for this report is discussed, focusing mainly on the high-level benchmark workflow as well as the corpus and query design.
@@ -212,20 +212,41 @@ It contains the following benchmark steps:
 \end{itemize}
 
 \section{Test Run and Analysis}
-% Note that the goal here is to confirm that it works properly, not to actually analyze the performance!
-% - Setup
-%   - Running on Emmy
-%     - mention HW here, atm 3 gcn2 nodes
-%     - we use ethernet interconnect, not OPA
-%   - Ubuntu 22.04 container
-%   - Elasticsearch 8.11.0 with its default java version (openjdk 21.0.1)
-%   - Configured to not be cached
-%   - Python 3.9.16
-%   - OpenMPI 4.1.4 compiled with ICC
-%
-% The results should mainly just show that the latency and throughput scales with the number of load generators per node.
-% maybe also show how the range query scales with output size for a given number of load generators
-% thats enough, the raw data can be found in the repo
+In this section, an example benchmark is shown in order to confirm that works as expected as well as show how this benchmarker could possibly be used in a real scientific benchmarking scenario. This section will be split into three parts: The setup, ingestion results, and query results. Note that all raw data as well as the analysis scripts can be found in the accompanying GitHub repository.
+
+\subsection{Setup}
+The aforementioned ported \texttt{nyc\_taxis} benchmark was run on the Emmy\footnote{\url{https://gwdg.de/hpc/systems/emmy/}} supercomputer using 3 dedicated compute nodes to create a 3 node Elasticsearch cluster. The nodes communicated using an ethernet interconnect instead of Intel Omni-Path, although both were tested to work properly. The Singularity container is based on the Ubuntu 22.04 dockerhub image. It runs Elasticsearch 8.11.0, which shipps its own OpenJDK 21.0.1. Elasticsearch indices were configured to not cache at all. The benchmarker used Python 3.9 as well as OpenMPI 4.1.
+
+Note that for these benchmarks a slightly modified version of this benchmarker was used. The main difference was that the benchmarker provided in this report does not support to run the cluster spawner and benchmarker on the same server since both expect to use \texttt{MPI\_COMM\_WORLD}. But for the purposes of this example benchmark, in order to save computing resources, it is okay to execute the load generators and to-be-benchmarked process on the same machine.
+
+\subsection{Ingestion}
+For the ingestion benchmarks, the 3 node cluster was ingested with different processes per node (ppn); A ppn of 4 means that for 3 Elasticsearch nodes $3 \cdot 4 = 12$ load generators were spawned. Note that the load generators choose a random Elasticsearch instance to send the data to. This is good, because it imitates the network overhead of a real benchmark.
+
+Here are the results:
+\begin{figure}[H]%
+    \centering
+    \subfloat[\centering {}]{{\includegraphics[width=0.45\textwidth]{./analysis/wallclocktime.png} }}%
+    \qquad
+    \subfloat[\centering {}]{{\includegraphics[width=0.45\textwidth]{./analysis/cputime.png} }}%
+    \caption{Results showing wall clock time (a) (maximum execution time) and CPU time (b) (sum of all execution times) for different ppn.}%
+\end{figure}
+
+One can see that, as expected, by increasing the amount of load generators the wall clock time to ingest a given set of data decreases, although it unfortunately scales sublinear. But when looking at the CPU time, which is the sum of all wall clock times, the ingestion becomes more inefficient with more load generators. This is most likely due to the increased load on Elasticsearch, since the load generators themselves do not communicate between each other while ingesting, thus no additional MPI overhead should be measured.
+
+\subsection{Queries}
+The query benchmarks were also done for different ppn, here are some results based on the aforementioned range queries:
+
+\begin{figure}[H]%
+    \centering
+    \subfloat[\centering {}]{{\includegraphics[width=0.45\textwidth]{./analysis/querythroughput.png} }}%
+    \qquad
+    \subfloat[\centering {}]{{\includegraphics[width=0.45\textwidth]{./analysis/querythroughputsleep.png} }}%
+    \caption{Scaling range queries along the BULK request size (a) (number of documents) and along the sleep between requests (b)}%
+\end{figure}
+The first plot shows scaling along the BULK request size. This means increasing the number of documents sent per request. It was measured in powers of 10, i.e. 10, 100, 1000, 10000 documents per request. The results are expected, since increasing the number of documents per request decreases the percentage wise network overhead, thus resulting in higher throughput. Furthermore it can be seen that it does not scale linearly\footnote{Note that both axis are logarithmic.} which shows that the Elasticsearch actually slows down from the increased overall load. More processes per node increase the throughput, implying that the server can still handle the number of processes well.\\
+
+The second plot does the same query, but with increased waiting/sleep times off each load generator between the requests. Fascinatingly, it can be seen that a sleep time of $0.02s$ increases the throughput significantly over not sleeping at all. After that, it can be seen that increasing the sleep time decreases the overhead, which is to be expected since the nodes were not completely utilized while benchmarking.
+
 
 \section{Challenges}
 The design and implementation of the benchmarker still leaves two challenges open, both of which are not trivial to solve optimally.
