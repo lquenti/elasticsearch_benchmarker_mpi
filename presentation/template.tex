@@ -32,6 +32,9 @@
 % For example, Institute for Computer Science / GWDG
 \newcommand{\myinstitute}{University of G\"ottingen}
 
+\newcommand{\ccheckmark}{\mbox{\ooalign{$\checkmark$\cr\hidewidth$\square$\hidewidth\cr}}}
+\newcommand{\ccheckbox}{\mbox{$\square$}}
+
 \configuretitlepage
 
 \begin{document}
@@ -167,6 +170,7 @@
     \end{enumerate}
   \end{frame}
 
+
   \begin{frame}{Background: Elasticsearch}
     \begin{columns}
       \begin{column}{0.5\textwidth}
@@ -209,6 +213,18 @@
   \end{frame}
 
 	\section{Spawner}
+  \begin{frame}{Contributions}
+    \begin{center}
+      \begin{itemize}
+        \item[\ccheckbox] On-demand Elasticsearch Cluster Spawner
+        \item[\ccheckbox] Ingestion Benchmarker
+        \item[\ccheckbox] Query Benchmarker
+        \item[\ccheckbox] Example workflow for canonical dataset
+      \end{itemize}
+    \end{center}
+  \end{frame}
+
+
 	\begin{frame}{On-Demand, Dynamic Cluster Spawner}
     \begin{block}{Features}
       \pause
@@ -270,6 +286,17 @@
 	\end{frame}
 
 	\section{Ingestor}
+  \begin{frame}{Contributions}
+    \begin{center}
+      \begin{itemize}
+        \item[\ccheckmark] On-demand Elasticsearch Cluster Spawner
+        \item[\ccheckbox] Ingestion Benchmarker
+        \item[\ccheckbox] Query Benchmarker
+        \item[\ccheckbox] Example workflow for canonical dataset
+      \end{itemize}
+    \end{center}
+  \end{frame}
+  
 	\begin{frame}{Ingestion Benchmarker}
     \begin{itemize}
       \item Two purposes:
@@ -380,6 +407,17 @@
 	\end{frame}
 
 	\section{Querier}
+  \begin{frame}{Contributions}
+    \begin{center}
+      \begin{itemize}
+        \item[\ccheckmark] On-demand Elasticsearch Cluster Spawner
+        \item[\ccheckmark] Ingestion Benchmarker
+        \item[\ccheckbox] Query Benchmarker
+        \item[\ccheckbox] Example workflow for canonical dataset
+      \end{itemize}
+    \end{center}
+  \end{frame}
+
 	\begin{frame}{Query Benchmarker}
 		\begin{itemize}
       \item Measures query-/\textbf{read}-performance against previously ingested data.
@@ -453,6 +491,17 @@
   \end{frame}
 
 	\section{Test Evaluation}
+  \begin{frame}{Contributions}
+    \begin{center}
+      \begin{itemize}
+        \item[\ccheckmark] On-demand Elasticsearch Cluster Spawner
+        \item[\ccheckmark] Ingestion Benchmarker
+        \item[\ccheckmark] Query Benchmarker
+        \item[\ccheckbox] Example workflow for canonical dataset
+      \end{itemize}
+    \end{center}
+  \end{frame}
+
   \begin{frame}{How to Create and Run a Benchmark (User Perspective)}
     \begin{enumerate}
       \item Choose a dataset or create a synthetic one
@@ -509,24 +558,73 @@
   \end{frame}
 
   \begin{frame}{Results}
-    \begin{figure}
-      \includegraphics[height=0.9\textheight]{./analysis/wallclocktime.png}
-    \end{figure}
+    \begin{columns}
+      \begin{column}{0.5\textwidth}
+        \begin{figure}
+          \includegraphics[height=0.9\textwidth]{./analysis/wallclocktime.png}
+        \end{figure}
+      \end{column}
+      \begin{column}{0.5\textwidth}
+        \begin{itemize}
+          \item Wall clock time decreases when increasing processes per node
+          \item More ingestion parallelism increases performance
+          \item But sublinear scaling
+            \begin{itemize}
+              \item Less efficient per extra ingestor process
+            \end{itemize}
+        \end{itemize}
+      \end{column}
+    \end{columns}
   \end{frame}
   \begin{frame}{Results}
-    \begin{figure}
-      \includegraphics[height=0.9\textheight]{./analysis/cputime.png}
-    \end{figure}
+    \begin{columns}
+      \begin{column}{0.5\textwidth}
+        \begin{figure}
+          \includegraphics[height=0.9\textwidth]{./analysis/cputime.png}
+        \end{figure}
+      \end{column}
+      \begin{column}{0.5\textwidth}
+        \begin{itemize}
+          \item CPU time:\\ Wall clock $\cdot$ number of processes
+          \item It becomes less CPU efficient with more ingestion nodes
+          \item If linear scaling in last plot $\Rightarrow$ the CPU ingestion time would stay the same
+        \end{itemize}
+      \end{column}
+    \end{columns}
   \end{frame}
   \begin{frame}{Results}
-    \begin{figure}
-      \includegraphics[height=0.9\textheight]{./analysis/querythroughput.png}
-    \end{figure}
+    \begin{columns}
+      \begin{column}{0.5\textwidth}
+        \begin{figure}
+          \includegraphics[height=0.9\textwidth]{./analysis/querythroughput.png}
+        \end{figure}
+      \end{column}
+      \begin{column}{0.5\textwidth}
+        \begin{itemize}
+          \item Works as expected
+          \item When sending more documents per request, the HTTP overhead should decrease
+          \item This works for all ppn
+          \item Increase becomes sublinear
+        \end{itemize}
+      \end{column}
+    \end{columns}
   \end{frame}
   \begin{frame}{Results}
-    \begin{figure}
-      \includegraphics[height=0.9\textheight]{./analysis/querythroughputsleep.png}
-    \end{figure}
+    \begin{columns}
+      \begin{column}{0.5\textwidth}
+        \begin{figure}
+          \includegraphics[height=0.9\textwidth]{./analysis/querythroughputsleep.png}
+        \end{figure}
+      \end{column}
+      \begin{column}{0.5\textwidth}
+        \begin{itemize}
+          \item Sleeping 0.02s is more efficient than not sleeping between requests!
+          \item 0.2s is approximately as efficient as 0.0s.
+          \item After that, it becomes less efficient since the Elasticsearch is idling.
+          \item Possible explaination: Additive Increase, Multiplicative Decrease (AIMD) in TCP, see report
+        \end{itemize}
+      \end{column}
+    \end{columns}
   \end{frame}
 
 	\section{Conclusion}
