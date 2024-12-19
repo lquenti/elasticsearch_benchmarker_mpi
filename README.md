@@ -1,5 +1,7 @@
 # MPI-based Creation and Benchmarking of a Dynamic Elasticsearch Cluster
 
+# [Related publication: Secure Elasticsearch Clusters on HPC Systems for Sensitive Data](https://doi.org/10.1007/978-3-031-73716-9_14)
+
 ## READ THE [REPORT](./report.pdf) OR THE PRESENTATION [SLIDES](./presentation.pdf)
 
 ## Structure
